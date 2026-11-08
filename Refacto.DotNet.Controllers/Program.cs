@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Refacto.DotNet.Controllers.Common;
 using Refacto.DotNet.Controllers.Database.Context;
+using Refacto.DotNet.Controllers.Repositories;
+using Refacto.DotNet.Controllers.Repositories.Impl;
 using Refacto.DotNet.Controllers.Services;
 using Refacto.DotNet.Controllers.Services.Impl;
 
@@ -14,6 +16,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddScoped<ProductService>();
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
