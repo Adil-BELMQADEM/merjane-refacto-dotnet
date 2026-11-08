@@ -4,7 +4,7 @@ using Refacto.DotNet.Controllers.Entities;
 
 namespace Refacto.DotNet.Controllers.Repositories.Impl
 {
-    public class OrderRepository : IOrderRepository
+    public sealed class OrderRepository : IOrderRepository
     {
         private readonly AppDbContext _context;
 

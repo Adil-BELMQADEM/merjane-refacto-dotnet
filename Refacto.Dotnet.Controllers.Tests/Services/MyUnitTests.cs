@@ -1,20 +1,19 @@
 ﻿using Moq;
-using Refacto.DotNet.Controllers.Common;
 using Refacto.DotNet.Controllers.Entities;
 using Refacto.DotNet.Controllers.Services;
-using Refacto.DotNet.Controllers.Services.Impl;
+using Refacto.DotNet.Controllers.Services.ProductHandlers;
 
 namespace Refacto.DotNet.Controllers.Tests.Services
 {
     public class MyUnitTests
     {
         private readonly Mock<INotificationService> _mockNotificationService;
-        private readonly ProductService _productService;
+        private readonly NormalProductHandler _normalProductHandler;
 
         public MyUnitTests()
         {
             _mockNotificationService = new Mock<INotificationService>();
-            _productService = new ProductService(_mockNotificationService.Object, new SystemClock());
+            _normalProductHandler = new NormalProductHandler(_mockNotificationService.Object);
         }
 
         [Fact]
@@ -30,7 +29,7 @@ namespace Refacto.DotNet.Controllers.Tests.Services
             };
 
             // WHEN
-            _productService.NotifyDelay(product.LeadTime, product);
+            _normalProductHandler.Handle(product);
 
             // THEN
             Assert.Equal(0, product.Available);

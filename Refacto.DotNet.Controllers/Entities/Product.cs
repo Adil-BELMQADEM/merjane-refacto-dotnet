@@ -31,5 +31,21 @@ namespace Refacto.DotNet.Controllers.Entities
 
         [Column("season_end_date")]
         public DateTime? SeasonEndDate { get; set; }
+
+        public bool IsInStock() => Available > 0;
+
+        public bool HasLeadTime() => LeadTime > 0;
+
+        public bool IsInSeason(DateTime today) => today > SeasonStartDate && today < SeasonEndDate;
+
+        public bool IsSeasonNotStartedAt(DateTime now) => SeasonStartDate > now;
+
+        public bool IsRestockedAfterSeasonEnd(DateTime now) => now.AddDays(LeadTime) > SeasonEndDate;
+
+        public bool IsNotExpiredOn(DateTime today) => ExpiryDate > today;
+
+        public void DecrementStock() => Available--;
+
+        public void ClearStock() => Available = 0;
     }
 }

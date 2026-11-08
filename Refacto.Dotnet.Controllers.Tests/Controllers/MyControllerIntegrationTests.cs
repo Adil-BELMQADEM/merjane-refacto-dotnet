@@ -127,6 +127,17 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
         }
 
         [Fact]
+        public async Task ProductWithoutType_IsLeftUntouched()
+        {
+            Product product = new() { Type = null, Name = "Box", Available = 5, LeadTime = 3 };
+
+            await ProcessAsync(await SeedOrderAsync(product));
+
+            Assert.Equal(5, Reload(product).Available);
+            _mockNotificationService.VerifyNoOtherCalls();
+        }
+
+        [Fact]
         public async Task ProcessOrder_WithoutItems_Succeeds()
         {
             Order order = await SeedOrderAsync();
