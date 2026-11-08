@@ -2,7 +2,7 @@ using Refacto.DotNet.Controllers.Entities;
 using Refacto.DotNet.Controllers.Repositories;
 using Refacto.DotNet.Controllers.Services.ProductHandlers;
 
-namespace Refacto.DotNet.Controllers.Services.Impl
+namespace Refacto.DotNet.Controllers.Services.Orders
 {
     public sealed class OrderService : IOrderService
     {

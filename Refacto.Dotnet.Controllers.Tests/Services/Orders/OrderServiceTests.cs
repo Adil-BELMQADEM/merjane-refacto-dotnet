@@ -1,11 +1,10 @@
 ﻿using Moq;
 using Refacto.DotNet.Controllers.Entities;
 using Refacto.DotNet.Controllers.Repositories;
-using Refacto.DotNet.Controllers.Services;
-using Refacto.DotNet.Controllers.Services.Impl;
+using Refacto.DotNet.Controllers.Services.Orders;
 using Refacto.DotNet.Controllers.Services.ProductHandlers;
 
-namespace Refacto.DotNet.Controllers.Tests.Services
+namespace Refacto.DotNet.Controllers.Tests.Services.Orders
 {
     public class OrderServiceTests
     {

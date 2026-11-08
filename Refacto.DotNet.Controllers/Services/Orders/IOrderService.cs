@@ -1,4 +1,4 @@
-namespace Refacto.DotNet.Controllers.Services
+namespace Refacto.DotNet.Controllers.Services.Orders
 {
     public interface IOrderService
     {

@@ -3,11 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Refacto.DotNet.Controllers.Database.Context;
-using Refacto.DotNet.Controllers.Dtos.Product;
 using Refacto.DotNet.Controllers.Entities;
 using Refacto.DotNet.Controllers.Services;
 using System.Net;
-using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace Refacto.Dotnet.Controllers.Tests.Controllers
 {
@@ -16,13 +15,13 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
     /// (including the odd cases) so the refactoring can be done without regression.
     /// </summary>
     [Collection("Sequential")]
-    public class MyControllerIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+    public class OrdersControllerIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
     {
         private readonly WebApplicationFactory<Program> _factory;
         private readonly AppDbContext _context;
         private readonly Mock<INotificationService> _mockNotificationService;
 
-        public MyControllerIntegrationTests(WebApplicationFactory<Program> factory)
+        public OrdersControllerIntegrationTests(WebApplicationFactory<Program> factory)
         {
             _mockNotificationService = new Mock<INotificationService>();
 
@@ -55,7 +54,7 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
 
 
         [Fact]
-        public async Task ProcessOrderShouldReturn()
+        public async Task ProcessOrder_ReturnsSuccess()
         {
             HttpClient client = _factory.CreateClient();
 
@@ -82,8 +81,8 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
             HttpResponseMessage response = await _factory.CreateClient().PostAsync($"/orders/{order.Id}/processOrder", null);
 
             _ = response.EnsureSuccessStatusCode();
-            ProcessOrderResponse? body = await response.Content.ReadFromJsonAsync<ProcessOrderResponse>();
-            Assert.Equal(order.Id, body!.id);
+            using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal(order.Id, body.RootElement.GetProperty("id").GetInt64());
         }
 
         [Fact]

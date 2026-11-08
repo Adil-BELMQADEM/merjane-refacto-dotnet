@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Refacto.DotNet.Controllers.Dtos.Product;
-using Refacto.DotNet.Controllers.Services;
+using Refacto.DotNet.Controllers.Dtos.Order;
+using Refacto.DotNet.Controllers.Services.Orders;
 
 namespace Refacto.DotNet.Controllers.Controllers
 {

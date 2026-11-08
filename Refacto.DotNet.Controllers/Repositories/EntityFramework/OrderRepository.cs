@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Refacto.DotNet.Controllers.Database.Context;
 using Refacto.DotNet.Controllers.Entities;
 
-namespace Refacto.DotNet.Controllers.Repositories.Impl
+namespace Refacto.DotNet.Controllers.Repositories.EntityFramework
 {
     public sealed class OrderRepository : IOrderRepository
     {
