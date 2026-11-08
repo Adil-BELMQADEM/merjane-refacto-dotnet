@@ -48,6 +48,17 @@ namespace Refacto.DotNet.Controllers.Tests.Services
         }
 
         [Fact]
+        public void ProcessOrder_WithoutItems_OnlySaves()
+        {
+            _orderRepository.Setup(r => r.FindByIdWithItems(OrderId)).Returns(new Order { Id = OrderId, Items = null });
+
+            _orderService.ProcessOrder(OrderId);
+
+            _normalHandler.Verify(h => h.Handle(It.IsAny<Product>()), Times.Never());
+            _orderRepository.Verify(r => r.SaveChanges(), Times.Once());
+        }
+
+        [Fact]
         public void ProcessOrder_SavesChangesOnce()
         {
             GivenOrder(new Product { Type = ProductType.Normal }, new Product { Type = ProductType.Seasonal });

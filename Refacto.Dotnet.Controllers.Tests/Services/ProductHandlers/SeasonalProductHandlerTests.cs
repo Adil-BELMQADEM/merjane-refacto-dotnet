@@ -79,6 +79,18 @@ namespace Refacto.DotNet.Controllers.Tests.Services.ProductHandlers
         }
 
         [Fact]
+        public void OutOfStockWithoutLeadTime_AnnouncesZeroDayDelay_CurrentQuirk()
+        {
+            Product product = Seasonal(available: 0, leadTime: 0, start: Today.AddDays(-10), end: Today.AddDays(60));
+
+            _handler.Handle(product);
+
+            Assert.Equal(0, product.Available);
+            _notificationService.Verify(n => n.SendDelayNotification(0, product.Name!), Times.Once());
+            _notificationService.VerifyNoOtherCalls();
+        }
+
+        [Fact]
         public void SeasonStartsToday_IsNotSoldAndAnnouncesDelay_CurrentQuirk()
         {
             Product product = Seasonal(available: 30, leadTime: 15, start: Today, end: Today.AddDays(60));

@@ -56,6 +56,15 @@ namespace Refacto.DotNet.Controllers.Tests.Services.ProductHandlers
             _notificationService.VerifyNoOtherCalls();
         }
 
+        [Fact]
+        public void WithoutExpiryDate_Throws_CurrentQuirk()
+        {
+            Product product = new() { Type = ProductType.Expirable, Name = "Honey", Available = 6, ExpiryDate = null };
+
+            Assert.Throws<InvalidOperationException>(() => _handler.Handle(product));
+            Assert.Equal(6, product.Available);
+        }
+
         private static Product Expirable(int available, DateTime expiryDate)
         {
             return new Product { Type = ProductType.Expirable, Name = "Butter", Available = available, ExpiryDate = expiryDate };

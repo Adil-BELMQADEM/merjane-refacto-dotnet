@@ -232,6 +232,18 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
         }
 
         [Fact]
+        public async Task Seasonal_OutOfStockWithoutLeadTime_AnnouncesZeroDayDelay_CurrentQuirk()
+        {
+            Product product = Seasonal("Melon", available: 0, leadTime: 0, startInDays: -2, endInDays: 58);
+
+            await ProcessAsync(await SeedOrderAsync(product));
+
+            Assert.Equal(0, Reload(product).Available);
+            _mockNotificationService.Verify(n => n.SendDelayNotification(0, "Melon"), Times.Once());
+            _mockNotificationService.VerifyNoOtherCalls();
+        }
+
+        [Fact]
         public async Task Seasonal_SeasonNotStarted_NotifiesOutOfStockAndKeepsStock()
         {
             Product product = Seasonal("Grapes", available: 30, leadTime: 15, startInDays: 180, endInDays: 240);
