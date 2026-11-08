@@ -1,4 +1,5 @@
-﻿using Refacto.DotNet.Controllers.Database.Context;
+﻿using Refacto.DotNet.Controllers.Common;
+using Refacto.DotNet.Controllers.Database.Context;
 using Refacto.DotNet.Controllers.Entities;
 
 namespace Refacto.DotNet.Controllers.Services.Impl
@@ -7,11 +8,13 @@ namespace Refacto.DotNet.Controllers.Services.Impl
     {
         private readonly INotificationService _ns;
         private readonly AppDbContext _ctx;
+        private readonly IClock _clock;
 
-        public ProductService(INotificationService ns, AppDbContext ctx)
+        public ProductService(INotificationService ns, AppDbContext ctx, IClock clock)
         {
             _ns = ns;
             _ctx = ctx;
+            _clock = clock;
         }
 
         public void NotifyDelay(int leadTime, Product p)
@@ -23,13 +26,13 @@ namespace Refacto.DotNet.Controllers.Services.Impl
 
         public void HandleSeasonalProduct(Product p)
         {
-            if (DateTime.Now.AddDays(p.LeadTime) > p.SeasonEndDate)
+            if (_clock.Now.AddDays(p.LeadTime) > p.SeasonEndDate)
             {
                 _ns.SendOutOfStockNotification(p.Name);
                 p.Available = 0;
                 _ = _ctx.SaveChanges();
             }
-            else if (p.SeasonStartDate > DateTime.Now)
+            else if (p.SeasonStartDate > _clock.Now)
             {
                 _ns.SendOutOfStockNotification(p.Name);
                 _ = _ctx.SaveChanges();
@@ -42,7 +45,7 @@ namespace Refacto.DotNet.Controllers.Services.Impl
 
         public void HandleExpiredProduct(Product p)
         {
-            if (p.Available > 0 && p.ExpiryDate > DateTime.Now)
+            if (p.Available > 0 && p.ExpiryDate > _clock.Now)
             {
                 p.Available -= 1;
                 _ = _ctx.SaveChanges();

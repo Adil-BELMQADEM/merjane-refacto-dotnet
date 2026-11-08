@@ -1,6 +1,4 @@
-﻿using System.Net;
-using System.Net.Http.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
+﻿using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -8,6 +6,8 @@ using Refacto.DotNet.Controllers.Database.Context;
 using Refacto.DotNet.Controllers.Dtos.Product;
 using Refacto.DotNet.Controllers.Entities;
 using Refacto.DotNet.Controllers.Services;
+using System.Net;
+using System.Net.Http.Json;
 
 namespace Refacto.Dotnet.Controllers.Tests.Controllers
 {
@@ -53,7 +53,6 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
             _ = _context.Database.EnsureCreated();
         }
 
-        // ---------------------------------------------------------------- Order
 
         [Fact]
         public async Task ProcessOrderShouldReturn()
@@ -95,14 +94,15 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
 
             await ProcessAsync(order);
 
-            Assert.Equal(29, Reload(products[0]).Available); // NORMAL in stock
-            Assert.Equal(0, Reload(products[1]).Available);  // NORMAL out of stock
-            Assert.Equal(29, Reload(products[2]).Available); // EXPIRABLE not expired
-            Assert.Equal(0, Reload(products[3]).Available);  // EXPIRABLE expired
-            Assert.Equal(29, Reload(products[4]).Available); // SEASONAL in season
-            Assert.Equal(30, Reload(products[5]).Available); // SEASONAL not started yet
+            Assert.Equal(29, AvailableOf(products, "USB Cable"));
+            Assert.Equal(0, AvailableOf(products, "USB Dongle"));
+            Assert.Equal(29, AvailableOf(products, "Butter"));
+            Assert.Equal(0, AvailableOf(products, "Milk"));
+            Assert.Equal(29, AvailableOf(products, "Watermelon"));
+            Assert.Equal(30, AvailableOf(products, "Grapes"));
+            DateTime milkExpiryDate = products.Single(p => p.Name == "Milk").ExpiryDate!.Value;
             _mockNotificationService.Verify(n => n.SendDelayNotification(10, "USB Dongle"), Times.Once());
-            _mockNotificationService.Verify(n => n.SendExpirationNotification("Milk", products[3].ExpiryDate!.Value), Times.Once());
+            _mockNotificationService.Verify(n => n.SendExpirationNotification("Milk", milkExpiryDate), Times.Once());
             _mockNotificationService.Verify(n => n.SendOutOfStockNotification("Grapes"), Times.Once());
             _mockNotificationService.VerifyNoOtherCalls();
         }
@@ -110,7 +110,6 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
         [Fact]
         public async Task ProcessOrder_UnknownOrder_CurrentlyFailsWithServerError()
         {
-            // Current behaviour: NullReferenceException -> 500. A 404 would be better (to discuss).
             HttpResponseMessage response = await _factory.CreateClient().PostAsync("/orders/999/processOrder", null);
 
             Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
@@ -140,7 +139,7 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
         [Fact]
         public async Task ProductType_IsCaseSensitive_LowercaseTypeIsIgnored_CurrentQuirk()
         {
-            Product product = new() { Type = "normal", Name = "USB Cable", Available = 30, LeadTime = 15 };
+            Product product = new() { Type = ProductType.Normal.ToLowerInvariant(), Name = "USB Cable", Available = 30, LeadTime = 15 };
 
             await ProcessAsync(await SeedOrderAsync(product));
 
@@ -148,7 +147,6 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
             _mockNotificationService.VerifyNoOtherCalls();
         }
 
-        // --------------------------------------------------------------- NORMAL
 
         [Fact]
         public async Task Normal_InStock_DecrementsAvailable()
@@ -186,7 +184,6 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
             _mockNotificationService.VerifyNoOtherCalls();
         }
 
-        // ------------------------------------------------------------- SEASONAL
 
         [Fact]
         public async Task Seasonal_InSeasonAndInStock_DecrementsAvailable()
@@ -252,8 +249,12 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
         {
             Product product = new()
             {
-                Type = "SEASONAL", Name = "Apricot", Available = 30, LeadTime = 15,
-                SeasonStartDate = DateTime.Now.Date.AddDays(1), SeasonEndDate = DateTime.Now.AddDays(58)
+                Type = ProductType.Seasonal,
+                Name = "Apricot",
+                Available = 30,
+                LeadTime = 15,
+                SeasonStartDate = DateTime.Now.Date.AddDays(1),
+                SeasonEndDate = DateTime.Now.AddDays(58)
             };
 
             await ProcessAsync(await SeedOrderAsync(product));
@@ -266,11 +267,14 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
         [Fact]
         public async Task Seasonal_SeasonStartsToday_IsNotSoldAndNotifiesDelay_CurrentQuirk()
         {
-            // Quirk: season bounds are exclusive, so on the first day the product is not sold even if in stock.
             Product product = new()
             {
-                Type = "SEASONAL", Name = "Peach", Available = 30, LeadTime = 15,
-                SeasonStartDate = DateTime.Now.Date, SeasonEndDate = DateTime.Now.AddDays(58)
+                Type = ProductType.Seasonal,
+                Name = "Peach",
+                Available = 30,
+                LeadTime = 15,
+                SeasonStartDate = DateTime.Now.Date,
+                SeasonEndDate = DateTime.Now.AddDays(58)
             };
 
             await ProcessAsync(await SeedOrderAsync(product));
@@ -283,11 +287,14 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
         [Fact]
         public async Task Seasonal_SeasonEndsToday_EmptiesStockAndNotifiesOutOfStock_CurrentQuirk()
         {
-            // Quirk: on the last day the product is not sold and its whole stock is set to 0.
             Product product = new()
             {
-                Type = "SEASONAL", Name = "Cherry", Available = 30, LeadTime = 15,
-                SeasonStartDate = DateTime.Now.AddDays(-30), SeasonEndDate = DateTime.Now.Date
+                Type = ProductType.Seasonal,
+                Name = "Cherry",
+                Available = 30,
+                LeadTime = 15,
+                SeasonStartDate = DateTime.Now.AddDays(-30),
+                SeasonEndDate = DateTime.Now.Date
             };
 
             await ProcessAsync(await SeedOrderAsync(product));
@@ -325,7 +332,7 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
         [Fact]
         public async Task Expirable_ExpiringToday_IsConsideredExpired()
         {
-            Product product = new() { Type = "EXPIRABLE", Name = "Yogurt", Available = 6, LeadTime = 5, ExpiryDate = DateTime.Now.Date };
+            Product product = new() { Type = ProductType.Expirable, Name = "Yogurt", Available = 6, LeadTime = 5, ExpiryDate = DateTime.Now.Date };
 
             await ProcessAsync(await SeedOrderAsync(product));
 
@@ -337,7 +344,7 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
         [Fact]
         public async Task Expirable_ExpiringTomorrow_IsStillSold()
         {
-            Product product = new() { Type = "EXPIRABLE", Name = "Cream", Available = 6, LeadTime = 5, ExpiryDate = DateTime.Now.Date.AddDays(1) };
+            Product product = new() { Type = ProductType.Expirable, Name = "Cream", Available = 6, LeadTime = 5, ExpiryDate = DateTime.Now.Date.AddDays(1) };
 
             await ProcessAsync(await SeedOrderAsync(product));
 
@@ -348,8 +355,7 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
         [Fact]
         public async Task Expirable_WithoutExpiryDate_CurrentlyFailsWithServerError_CurrentQuirk()
         {
-            // Quirk: (DateTime)p.ExpiryDate throws on null -> 500, stock untouched.
-            Product product = new() { Type = "EXPIRABLE", Name = "Honey", Available = 6, LeadTime = 5, ExpiryDate = null };
+            Product product = new() { Type = ProductType.Expirable, Name = "Honey", Available = 6, LeadTime = 5, ExpiryDate = null };
             Order order = await SeedOrderAsync(product);
 
             HttpResponseMessage response = await _factory.CreateClient().PostAsync($"/orders/{order.Id}/processOrder", null);
@@ -361,7 +367,6 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
         [Fact]
         public async Task Expirable_NotExpiredButOutOfStock_NotifiesExpiration_CurrentQuirk()
         {
-            // Quirk: an out-of-stock product that is NOT expired gets an expiration notification (no delay notification).
             Product product = Expirable("Cheese", available: 0, expiresInDays: 26);
 
             await ProcessAsync(await SeedOrderAsync(product));
@@ -371,7 +376,6 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
             _mockNotificationService.VerifyNoOtherCalls();
         }
 
-        // -------------------------------------------------------------- Helpers
 
         private async Task<Order> SeedOrderAsync(params Product[] products)
         {
@@ -395,17 +399,26 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
             return _context.Products.AsNoTracking().Single(p => p.Id == product.Id);
         }
 
+        private int AvailableOf(IEnumerable<Product> products, string name)
+        {
+            return Reload(products.Single(p => p.Name == name)).Available;
+        }
+
         private static Product Normal(string name, int available, int leadTime)
         {
-            return new Product { Type = "NORMAL", Name = name, Available = available, LeadTime = leadTime };
+            return new Product { Type = ProductType.Normal, Name = name, Available = available, LeadTime = leadTime };
         }
 
         private static Product Seasonal(string name, int available, int leadTime, int startInDays, int endInDays)
         {
             return new Product
             {
-                Type = "SEASONAL", Name = name, Available = available, LeadTime = leadTime,
-                SeasonStartDate = DateTime.Now.AddDays(startInDays), SeasonEndDate = DateTime.Now.AddDays(endInDays)
+                Type = ProductType.Seasonal,
+                Name = name,
+                Available = available,
+                LeadTime = leadTime,
+                SeasonStartDate = DateTime.Now.AddDays(startInDays),
+                SeasonEndDate = DateTime.Now.AddDays(endInDays)
             };
         }
 
@@ -413,7 +426,10 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
         {
             return new Product
             {
-                Type = "EXPIRABLE", Name = name, Available = available, LeadTime = 15,
+                Type = ProductType.Expirable,
+                Name = name,
+                Available = available,
+                LeadTime = 15,
                 ExpiryDate = DateTime.Now.AddDays(expiresInDays)
             };
         }
@@ -427,12 +443,12 @@ namespace Refacto.Dotnet.Controllers.Tests.Controllers
         {
             return new List<Product>
             {
-                new Product { LeadTime = 15, Available = 30, Type = "NORMAL", Name = "USB Cable" },
-                new Product { LeadTime = 10, Available = 0, Type = "NORMAL", Name = "USB Dongle" },
-                new Product { LeadTime = 15, Available = 30, Type = "EXPIRABLE", Name = "Butter", ExpiryDate = DateTime.Now.AddDays(26) },
-                new Product { LeadTime = 90, Available = 6, Type = "EXPIRABLE", Name = "Milk", ExpiryDate = DateTime.Now.AddDays(-2) },
-                new Product { LeadTime = 15, Available = 30, Type = "SEASONAL", Name = "Watermelon", SeasonStartDate = DateTime.Now.AddDays(-2), SeasonEndDate = DateTime.Now.AddDays(58) },
-                new Product { LeadTime = 15, Available = 30, Type = "SEASONAL", Name = "Grapes", SeasonStartDate = DateTime.Now.AddDays(180), SeasonEndDate = DateTime.Now.AddDays(240) }
+                new Product { LeadTime = 15, Available = 30, Type = ProductType.Normal, Name = "USB Cable" },
+                new Product { LeadTime = 10, Available = 0, Type = ProductType.Normal, Name = "USB Dongle" },
+                new Product { LeadTime = 15, Available = 30, Type = ProductType.Expirable, Name = "Butter", ExpiryDate = DateTime.Now.AddDays(26) },
+                new Product { LeadTime = 90, Available = 6, Type = ProductType.Expirable, Name = "Milk", ExpiryDate = DateTime.Now.AddDays(-2) },
+                new Product { LeadTime = 15, Available = 30, Type = ProductType.Seasonal, Name = "Watermelon", SeasonStartDate = DateTime.Now.AddDays(-2), SeasonEndDate = DateTime.Now.AddDays(58) },
+                new Product { LeadTime = 15, Available = 30, Type = ProductType.Seasonal, Name = "Grapes", SeasonStartDate = DateTime.Now.AddDays(180), SeasonEndDate = DateTime.Now.AddDays(240) }
             };
         }
     }

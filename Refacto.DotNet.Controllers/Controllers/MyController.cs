@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Refacto.DotNet.Controllers.Common;
 using Refacto.DotNet.Controllers.Database.Context;
 using Refacto.DotNet.Controllers.Dtos.Product;
 using Refacto.DotNet.Controllers.Services.Impl;
@@ -12,11 +13,13 @@ namespace Refacto.DotNet.Controllers.Controllers
     {
         private readonly ProductService _ps;
         private readonly AppDbContext _ctx;
+        private readonly IClock _clock;
 
-        public OrdersController(ProductService ps, AppDbContext ctx)
+        public OrdersController(ProductService ps, AppDbContext ctx, IClock clock)
         {
             _ps = ps;
             _ctx = ctx;
+            _clock = clock;
         }
 
         [HttpPost("{orderId}/processOrder")]
@@ -32,7 +35,7 @@ namespace Refacto.DotNet.Controllers.Controllers
 
             foreach (Entities.Product p in products)
             {
-                if (p.Type == "NORMAL")
+                if (p.Type == Entities.ProductType.Normal)
                 {
                     if (p.Available > 0)
                     {
@@ -50,9 +53,9 @@ namespace Refacto.DotNet.Controllers.Controllers
                         }
                     }
                 }
-                else if (p.Type == "SEASONAL")
+                else if (p.Type == Entities.ProductType.Seasonal)
                 {
-                    if (DateTime.Now.Date > p.SeasonStartDate && DateTime.Now.Date < p.SeasonEndDate && p.Available > 0)
+                    if (_clock.Now.Date > p.SeasonStartDate && _clock.Now.Date < p.SeasonEndDate && p.Available > 0)
                     {
                         p.Available -= 1;
                         _ = _ctx.SaveChanges();
@@ -62,9 +65,9 @@ namespace Refacto.DotNet.Controllers.Controllers
                         _ps.HandleSeasonalProduct(p);
                     }
                 }
-                else if (p.Type == "EXPIRABLE")
+                else if (p.Type == Entities.ProductType.Expirable)
                 {
-                    if (p.Available > 0 && p.ExpiryDate > DateTime.Now.Date)
+                    if (p.Available > 0 && p.ExpiryDate > _clock.Now.Date)
                     {
                         p.Available -= 1;
                         _ = _ctx.SaveChanges();

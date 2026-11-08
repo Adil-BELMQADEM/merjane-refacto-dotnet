@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Moq;
 using Moq.EntityFrameworkCore;
+using Refacto.DotNet.Controllers.Common;
 using Refacto.DotNet.Controllers.Database.Context;
 using Refacto.DotNet.Controllers.Entities;
 using Refacto.DotNet.Controllers.Services;
@@ -21,7 +22,7 @@ namespace Refacto.DotNet.Controllers.Tests.Services
             _mockDbContext = new Mock<AppDbContext>();
             _mockDbSet = new Mock<DbSet<Product>>();
             _ = _mockDbContext.Setup(x => x.Products).ReturnsDbSet(Array.Empty<Product>());
-            _productService = new ProductService(_mockNotificationService.Object, _mockDbContext.Object);
+            _productService = new ProductService(_mockNotificationService.Object, _mockDbContext.Object, new SystemClock());
         }
 
         [Fact]
@@ -32,7 +33,7 @@ namespace Refacto.DotNet.Controllers.Tests.Services
             {
                 LeadTime = 15,
                 Available = 0,
-                Type = "NORMAL",
+                Type = ProductType.Normal,
                 Name = "RJ45 Cable"
             };
 
